@@ -5,10 +5,12 @@
 第二种职介的克制为黑桃 > 红桃 > 梅花 > 方块。
 游戏中有10-13名玩家，每个玩家分别拥有一个第一职介和第二职介。王牌 Joker 没有第二职介。
 在给定一定攻击记录的情况下，判断最后剩下的玩家的职介。
+
+TODO: Consider 两栖
 """
 
 from enum import Enum
-from typing import Any
+
 
 class FirstJob(Enum):
     KING = 'King'
@@ -16,20 +18,72 @@ class FirstJob(Enum):
     JACK = 'Jack'
     JOKER = 'Joker'
 
+    def counter_by(self):
+        """
+        Do not include JOKER
+        """
+        if self == FirstJob.KING:
+            return FirstJob.JACK
+        if self == FirstJob.QUEEN:
+            return FirstJob.KING
+        if self == FirstJob.JACK:
+            return FirstJob.QUEEN
+
+
 class SecondJob(Enum):
     SPADE = '♠'
     HEART = '♥'
     CLUB = '♣'
     DIAMOND = '♦'
 
-class Player():
+    def counter_by(self):
+        if self == SecondJob.SPADE:
+            return []
+        if self == SecondJob.HEART:
+            return [SecondJob.SPADE]
+        if self == SecondJob.CLUB:
+            return [SecondJob.SPADE, SecondJob.HEART]
+        if self == SecondJob.DIAMOND:
+            return [SecondJob.SPADE, SecondJob.HEART, SecondJob.CLUB]
+
+    def all():
+        return [SecondJob.SPADE, SecondJob.HEART, SecondJob.CLUB, SecondJob.DIAMOND]
+
+
+class Job():
     def __init__(self, first_job, second_job):
         self.first_job = first_job
-        self.second_job = second_job
+        self.second_job = second_job if first_job != FirstJob.JOKER else None
 
     def __str__(self) -> str:
         # if the first job is Joker, then don't output the second job
         return f'{self.first_job.value}{self.second_job.value if self.first_job != FirstJob.JOKER else ""}'
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+    def is_joker(self):
+        return self.first_job == FirstJob.JOKER
+
+    def all_jobs():
+        all_jobs = []
+        for first_job in FirstJob:
+            if first_job != FirstJob.JOKER:
+                for second_job in SecondJob:
+                    all_jobs.append(Job(first_job, second_job))
+
+        all_jobs.append(Job(FirstJob.JOKER, None))
+        return all_jobs
+
+    def all_jobs_of(first_job: FirstJob, second_jobs: list[SecondJob]):
+        all_jobs = list()
+        for second_job in second_jobs:
+            all_jobs.append(Job(first_job, second_job))
+
+        return all_jobs
+
+    def __eq__(self, __value: object) -> bool:
+        return self.first_job == __value.first_job and self.second_job == __value.second_job
 
     def is_counter(self, player):
         """
@@ -69,4 +123,12 @@ class Player():
         """
         Give a list of player jobs which counter the player
         """
+        if self.first_job == FirstJob.JOKER:
+            return Job.all_jobs()
 
+        first_level = Job.all_jobs_of(self.first_job.counter_by(
+        ), [SecondJob.SPADE, SecondJob.HEART, SecondJob.CLUB, SecondJob.DIAMOND])
+        second_level = Job.all_jobs_of(
+            self.first_job, self.second_job.counter_by())
+
+        return first_level + second_level + [Job(FirstJob.JOKER, None)]
